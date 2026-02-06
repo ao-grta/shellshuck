@@ -102,6 +102,17 @@ class TunnelDialog(QDialog):
         self._extra_flags.setPlaceholderText("e.g. -o StrictHostKeyChecking=no")
         form.addRow("Extra SSH flags:", self._extra_flags)
 
+        # SSH key row
+        key_row = QHBoxLayout()
+        self._identity_file = QLineEdit()
+        self._identity_file.setReadOnly(True)
+        self._identity_file.setPlaceholderText("Using SSH agent")
+        key_row.addWidget(self._identity_file)
+        setup_key_btn = QPushButton("Setup SSH Key")
+        setup_key_btn.clicked.connect(self._on_setup_key)
+        key_row.addWidget(setup_key_btn)
+        form.addRow("SSH Key:", key_row)
+
         self._connect_on_startup = QCheckBox("Connect on startup")
         form.addRow("", self._connect_on_startup)
 
@@ -141,12 +152,28 @@ class TunnelDialog(QDialog):
         self._rule_rows.remove(row)
         row.deleteLater()
 
+    def _on_setup_key(self) -> None:
+        from shellshuck.widgets.key_setup_dialog import KeySetupDialog
+
+        host = self._host.text().strip()
+        user = self._user.text().strip()
+        port = self._port.value()
+        name = self._name.text().strip() or "tunnel"
+
+        if not host or not user:
+            return
+
+        dialog = KeySetupDialog(name, host, user, port, parent=self)
+        if dialog.run() and dialog.key_path:
+            self._identity_file.setText(dialog.key_path)
+
     def _populate(self, tunnel: TunnelConfig) -> None:
         self._name.setText(tunnel.name)
         self._host.setText(tunnel.host)
         self._user.setText(tunnel.user)
         self._port.setValue(tunnel.port)
         self._extra_flags.setText(tunnel.extra_ssh_flags)
+        self._identity_file.setText(tunnel.identity_file)
         self._connect_on_startup.setChecked(tunnel.connect_on_startup)
         for rule in tunnel.forward_rules:
             self._add_rule_row(rule)
@@ -162,6 +189,7 @@ class TunnelDialog(QDialog):
             forward_rules=[row.get_rule() for row in self._rule_rows],
             extra_ssh_flags=self._extra_flags.text().strip(),
             connect_on_startup=self._connect_on_startup.isChecked(),
+            identity_file=self._identity_file.text().strip(),
         )
 
     def run(self) -> bool:

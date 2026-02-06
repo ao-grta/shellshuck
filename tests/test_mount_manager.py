@@ -80,3 +80,38 @@ def test_build_mount_command_has_keepalive() -> None:
     cmd_str = " ".join(cmd)
     assert "ServerAliveInterval" in cmd_str
     assert "ServerAliveCountMax" in cmd_str
+
+
+def test_build_mount_command_with_identity_file() -> None:
+    config = MountConfig(
+        name="test",
+        host="nas.local",
+        user="alice",
+        remote_path="/data",
+        local_mount="/mnt/data",
+        identity_file="/home/alice/.config/shellshuck/keys/test_ed25519",
+    )
+    cmd = build_sshfs_command(config)
+    # Find the IdentityFile option
+    found = False
+    for i, arg in enumerate(cmd):
+        if (
+            arg == "-o"
+            and i + 1 < len(cmd)
+            and cmd[i + 1] == "IdentityFile=/home/alice/.config/shellshuck/keys/test_ed25519"
+        ):
+            found = True
+    assert found, f"IdentityFile option not found in: {cmd}"
+
+
+def test_build_mount_command_without_identity_file() -> None:
+    config = MountConfig(
+        name="test",
+        host="nas.local",
+        user="alice",
+        remote_path="/data",
+        local_mount="/mnt/data",
+    )
+    cmd = build_sshfs_command(config)
+    cmd_str = " ".join(cmd)
+    assert "IdentityFile" not in cmd_str

@@ -53,6 +53,11 @@ class ShellshuckApp:
         # Don't quit when window closes — tray keeps app alive
         self.qt_app.setQuitOnLastWindowClosed(False)
 
+        # Set application window icon
+        logo_path = RESOURCES_DIR / "shellshuck.svg"
+        if logo_path.exists():
+            self.qt_app.setWindowIcon(QIcon(str(logo_path)))
+
         self.config_manager = ConfigManager()
         self.config = self.config_manager.load()
 
@@ -96,6 +101,7 @@ class ShellshuckApp:
         self.main_window.edit_tunnel_requested.connect(self._on_edit_tunnel)
         self.main_window.edit_mount_requested.connect(self._on_edit_mount)
         self.main_window.delete_requested.connect(self._on_delete)
+        self.main_window.setup_key_requested.connect(self._on_setup_key)
 
         # Wire manager log signals to the log panel
         log_panel = self.main_window.log_panel
@@ -194,6 +200,28 @@ class ShellshuckApp:
 
         self._save_and_refresh()
 
+    def _on_setup_key(self, config_id: str, conn_type: str) -> None:
+        from shellshuck.widgets.key_setup_dialog import KeySetupDialog
+
+        if conn_type == "tunnel":
+            config = self._find_tunnel(config_id)
+        else:
+            config = self._find_mount(config_id)
+
+        if config is None:
+            return
+
+        dialog = KeySetupDialog(
+            name=config.name,
+            host=config.host,
+            user=config.user,
+            port=config.port,
+            parent=self.main_window,
+        )
+        if dialog.run() and dialog.key_path:
+            config.identity_file = dialog.key_path
+            self._save_and_refresh()
+
     # --- Tray ---
 
     @staticmethod
@@ -289,5 +317,14 @@ class ShellshuckApp:
         return None
 
     def run(self) -> int:
+        if self.config.show_splash:
+            from shellshuck.widgets.splash import SplashScreen
+
+            splash = SplashScreen()
+            splash.exec_()
+            if splash.dont_show_again:
+                self.config.show_splash = False
+                self.config_manager.save(self.config)
+
         self.main_window.show()
         return self.qt_app.exec_()

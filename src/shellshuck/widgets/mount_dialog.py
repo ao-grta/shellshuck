@@ -79,6 +79,17 @@ class MountDialog(QDialog):
         self._sshfs_flags.setPlaceholderText("e.g. -o allow_other")
         form.addRow("Extra SSHFS flags:", self._sshfs_flags)
 
+        # SSH key row
+        key_row = QHBoxLayout()
+        self._identity_file = QLineEdit()
+        self._identity_file.setReadOnly(True)
+        self._identity_file.setPlaceholderText("Using SSH agent")
+        key_row.addWidget(self._identity_file)
+        setup_key_btn = QPushButton("Setup SSH Key")
+        setup_key_btn.clicked.connect(self._on_setup_key)
+        key_row.addWidget(setup_key_btn)
+        form.addRow("SSH Key:", key_row)
+
         self._connect_on_startup = QCheckBox("Connect on startup")
         form.addRow("", self._connect_on_startup)
 
@@ -92,6 +103,21 @@ class MountDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _on_setup_key(self) -> None:
+        from shellshuck.widgets.key_setup_dialog import KeySetupDialog
+
+        host = self._host.text().strip()
+        user = self._user.text().strip()
+        port = self._port.value()
+        name = self._name.text().strip() or "mount"
+
+        if not host or not user:
+            return
+
+        dialog = KeySetupDialog(name, host, user, port, parent=self)
+        if dialog.run() and dialog.key_path:
+            self._identity_file.setText(dialog.key_path)
+
     def _populate(self, mount: MountConfig) -> None:
         self._name.setText(mount.name)
         self._host.setText(mount.host)
@@ -100,6 +126,7 @@ class MountDialog(QDialog):
         self._remote_path.setText(mount.remote_path)
         self._local_mount.setText(mount.local_mount)
         self._sshfs_flags.setText(mount.sshfs_flags)
+        self._identity_file.setText(mount.identity_file)
         self._connect_on_startup.setChecked(mount.connect_on_startup)
 
     def _browse_mount_point(self) -> None:
@@ -121,6 +148,7 @@ class MountDialog(QDialog):
             local_mount=self._local_mount.text().strip(),
             sshfs_flags=self._sshfs_flags.text().strip(),
             connect_on_startup=self._connect_on_startup.isChecked(),
+            identity_file=self._identity_file.text().strip(),
         )
 
     def run(self) -> bool:

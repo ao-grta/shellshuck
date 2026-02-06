@@ -5,8 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeyEvent, QMouseEvent
-from PySide6.QtSvgWidgets import QSvgWidget
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -16,7 +15,8 @@ from PySide6.QtWidgets import (
 
 from shellshuck import __version__
 
-LOGO_PATH = Path(__file__).parent.parent.parent.parent / "resources" / "icons" / "shellshuck.svg"
+RESOURCES_DIR = Path(__file__).parent.parent.parent.parent / "resources" / "icons"
+SPLASH_PATH = RESOURCES_DIR / "shellshuck-splash.png"
 
 
 class SplashScreen(QDialog):
@@ -28,38 +28,30 @@ class SplashScreen(QDialog):
             Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setFixedSize(360, 340)
+        self.setFixedSize(400, 420)
         self.setStyleSheet(
             "QDialog { background: #2d2d2d; border-radius: 16px; }"
         )
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(30, 30, 30, 24)
-        layout.setSpacing(8)
+        layout.setContentsMargins(30, 24, 30, 20)
+        layout.setSpacing(6)
 
-        # Logo
-        logo = QSvgWidget(str(LOGO_PATH))
-        logo.setFixedSize(120, 120)
-        layout.addWidget(logo, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Logo from PNG
+        logo_label = QLabel()
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pixmap = QPixmap(str(SPLASH_PATH))
+        if not pixmap.isNull():
+            scaled = pixmap.scaled(
+                240,
+                240,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            logo_label.setPixmap(scaled)
+        layout.addWidget(logo_label)
 
-        layout.addSpacing(8)
-
-        # App name
-        name_label = QLabel("Shellshuck")
-        name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name_label.setStyleSheet(
-            "color: #4caf50; font-size: 26px; font-weight: bold;"
-            " font-family: monospace;"
-        )
-        layout.addWidget(name_label)
-
-        # Tagline
-        tagline = QLabel("SSH Tunnel & Mount Manager")
-        tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tagline.setStyleSheet(
-            "color: #b0b0b0; font-size: 13px; font-family: sans-serif;"
-        )
-        layout.addWidget(tagline)
+        layout.addSpacing(4)
 
         # Version
         version_label = QLabel(f"v{__version__}")
@@ -69,7 +61,7 @@ class SplashScreen(QDialog):
         )
         layout.addWidget(version_label)
 
-        layout.addSpacing(16)
+        layout.addSpacing(12)
 
         # Don't show again checkbox
         self._checkbox = QCheckBox("Don't show this again")

@@ -53,6 +53,11 @@ class ShellshuckApp:
         # Don't quit when window closes — tray keeps app alive
         self.qt_app.setQuitOnLastWindowClosed(False)
 
+        # Set application window icon
+        logo_path = RESOURCES_DIR / "shellshuck.svg"
+        if logo_path.exists():
+            self.qt_app.setWindowIcon(QIcon(str(logo_path)))
+
         self.config_manager = ConfigManager()
         self.config = self.config_manager.load()
 
@@ -289,5 +294,14 @@ class ShellshuckApp:
         return None
 
     def run(self) -> int:
+        if self.config.show_splash:
+            from shellshuck.widgets.splash import SplashScreen
+
+            splash = SplashScreen()
+            splash.exec_()
+            if splash.dont_show_again:
+                self.config.show_splash = False
+                self.config_manager.save(self.config)
+
         self.main_window.show()
         return self.qt_app.exec_()

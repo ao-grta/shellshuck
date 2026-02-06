@@ -102,12 +102,14 @@ def test_app_config_round_trip() -> None:
                 local_mount="/mnt/data",
             ),
         ],
+        show_splash=False,
     )
     restored = AppConfig.from_dict(config.to_dict())
     assert len(restored.tunnels) == 1
     assert len(restored.mounts) == 1
     assert restored.tunnels[0].name == "t1"
     assert restored.mounts[0].name == "m1"
+    assert restored.show_splash is False
 
 
 def test_app_config_empty() -> None:
@@ -115,3 +117,10 @@ def test_app_config_empty() -> None:
     restored = AppConfig.from_dict(config.to_dict())
     assert restored.tunnels == []
     assert restored.mounts == []
+    assert restored.show_splash is True
+
+
+def test_app_config_show_splash_default() -> None:
+    """show_splash defaults to True when missing from persisted data."""
+    restored = AppConfig.from_dict({"tunnels": [], "mounts": []})
+    assert restored.show_splash is True

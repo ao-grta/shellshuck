@@ -122,11 +122,13 @@ class AppConfig:
 
     tunnels: list[TunnelConfig] = field(default_factory=list)
     mounts: list[MountConfig] = field(default_factory=list)
+    show_splash: bool = True
 
     def to_dict(self) -> dict[str, object]:
         return {
             "tunnels": [t.to_dict() for t in self.tunnels],
             "mounts": [m.to_dict() for m in self.mounts],
+            "show_splash": self.show_splash,
         }
 
     @classmethod
@@ -138,4 +140,5 @@ class AppConfig:
         return cls(
             tunnels=[TunnelConfig.from_dict(t) for t in tunnels_data],
             mounts=[MountConfig.from_dict(m) for m in mounts_data],
+            show_splash=bool(data.get("show_splash", True)),
         )

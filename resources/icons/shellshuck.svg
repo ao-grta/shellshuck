@@ -1,5 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#2d2d2d"/>
-  <text x="32" y="44" font-family="monospace" font-size="32" fill="#4caf50" text-anchor="middle" font-weight="bold">S</text>
-  <circle cx="48" cy="16" r="6" fill="#4caf50"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="shell-top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6d6d6d"/>
+      <stop offset="100%" stop-color="#4a4a4a"/>
+    </linearGradient>
+    <linearGradient id="shell-bot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a5a5a"/>
+      <stop offset="100%" stop-color="#3a3a3a"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2d2d2d"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="128" height="128" rx="20" fill="#2d2d2d"/>
+  <!-- Top shell half (lid, slightly open) -->
+  <path d="M24,62 Q28,20 64,14 Q100,20 104,62 Z"
+        fill="url(#shell-top)" stroke="#7a7a7a" stroke-width="1.5"/>
+  <!-- Shell ridges on top -->
+  <path d="M38,56 Q42,30 64,24 Q86,30 90,56" fill="none"
+        stroke="#8a8a8a" stroke-width="0.8" opacity="0.5"/>
+  <path d="M46,54 Q50,34 64,28 Q78,34 82,54" fill="none"
+        stroke="#8a8a8a" stroke-width="0.6" opacity="0.4"/>
+  <!-- Hinge highlight -->
+  <ellipse cx="64" cy="62" rx="42" ry="3" fill="#5a5a5a"/>
+  <!-- Bottom shell half -->
+  <path d="M22,65 Q24,108 64,114 Q104,108 106,65 Z"
+        fill="url(#shell-bot)" stroke="#7a7a7a" stroke-width="1.5"/>
+  <!-- Shell ridges on bottom -->
+  <path d="M36,70 Q38,102 64,108 Q90,102 92,70" fill="none"
+        stroke="#8a8a8a" stroke-width="0.8" opacity="0.5"/>
+  <path d="M46,72 Q48,98 64,104 Q80,98 82,72" fill="none"
+        stroke="#8a8a8a" stroke-width="0.6" opacity="0.4"/>
+  <!-- Dark interior -->
+  <ellipse cx="64" cy="84" rx="32" ry="20" fill="url(#inner)"/>
+  <!-- Terminal prompt >_ in green -->
+  <text x="52" y="90" font-family="monospace, 'Courier New'"
+        font-size="24" font-weight="bold" fill="#4caf50">
+    &gt;_
+  </text>
+  <!-- Pearl accent -->
+  <circle cx="84" cy="76" r="4" fill="#e0e0e0" opacity="0.7"/>
+  <circle cx="85" cy="75" r="1.5" fill="#ffffff" opacity="0.9"/>
 </svg>

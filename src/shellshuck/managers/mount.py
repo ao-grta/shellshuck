@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 import shlex
 from enum import Enum, auto
+from pathlib import Path
 
-from PySide6.QtCore import QObject, QProcess, QTimer, Signal
+from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
 from shellshuck.models import MountConfig
 
 logger = logging.getLogger(__name__)
+
+ASKPASS_SCRIPT = str(Path(__file__).parent.parent / "askpass.py")
 
 HEALTH_CHECK_INTERVAL_MS = 30000
 INITIAL_RETRY_DELAY_MS = 2000
@@ -33,11 +36,13 @@ class MountProcess:
 
     def __init__(self, config: MountConfig) -> None:
         self.config = config
+        self.process: QProcess | None = None
         self.state = MountState.UNMOUNTED
         self.retry_count: int = 0
         self.retry_timer: QTimer | None = None
         self.health_timer: QTimer | None = None
         self.intentional_stop: bool = False
+        self.stderr_buffer: str = ""
 
 
 def build_sshfs_command(config: MountConfig) -> list[str]:
@@ -54,6 +59,8 @@ def build_sshfs_command(config: MountConfig) -> list[str]:
         "ConnectTimeout=15",
         "-o",
         "ConnectionAttempts=1",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
         "-o",
         f"port={config.port}",
         "-f",  # foreground — so QProcess can track it
@@ -133,12 +140,21 @@ class MountManager(QObject):
         self.mount_log.emit(mp.config.id, f"Mounting: {' '.join(cmd)}")
         self._set_state(mp, MountState.MOUNTING)
         mp.intentional_stop = False
+        mp.stderr_buffer = ""
 
         process = QProcess(self)
+        mp.process = process
+
+        # Set SSH_ASKPASS so password/passphrase prompts show a GUI dialog
+        env = QProcessEnvironment.systemEnvironment()
+        env.insert("SSH_ASKPASS", ASKPASS_SCRIPT)
+        env.insert("SSH_ASKPASS_REQUIRE", "force")
+        process.setProcessEnvironment(env)
+
         process.setProgram(cmd[0])
         process.setArguments(cmd[1:])
 
-        process.readyReadStandardError.connect(lambda: self._on_stderr(mp, process))
+        process.readyReadStandardError.connect(lambda: self._on_stderr(mp))
         process.started.connect(lambda: self._on_started(mp))
         process.finished.connect(lambda code, status: self._on_finished(mp, code, status))
 
@@ -153,10 +169,15 @@ class MountManager(QObject):
         # Start health check timer
         self._start_health_check(mp)
 
-    def _on_stderr(self, mp: MountProcess, process: QProcess) -> None:
-        """Log stderr from sshfs."""
-        data = process.readAllStandardError().data().decode(errors="replace")
-        for line in data.strip().splitlines():
+    def _on_stderr(self, mp: MountProcess) -> None:
+        """Accumulate stderr output."""
+        if mp.process is None:
+            return
+        data = mp.process.readAllStandardError().data().decode(errors="replace")
+        mp.stderr_buffer += data
+        # Log each complete line
+        while "\n" in mp.stderr_buffer:
+            line, mp.stderr_buffer = mp.stderr_buffer.split("\n", 1)
             line = line.strip()
             if line:
                 self.mount_log.emit(mp.config.id, f"[sshfs] {line}")

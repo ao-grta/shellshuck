@@ -6,8 +6,9 @@ import logging
 import shlex
 from dataclasses import dataclass
 from enum import Enum, auto
+from pathlib import Path
 
-from PySide6.QtCore import QObject, QProcess, QTimer, Signal
+from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
 from shellshuck.models import TunnelConfig
 
@@ -28,6 +29,8 @@ SSH_ERROR_PATTERNS: list[tuple[str, str]] = [
 ]
 
 # Reconnect backoff settings
+ASKPASS_SCRIPT = str(Path(__file__).parent.parent / "askpass.py")
+
 INITIAL_RETRY_DELAY_MS = 2000
 MAX_RETRY_DELAY_MS = 60000
 BACKOFF_FACTOR = 2
@@ -76,6 +79,8 @@ def build_ssh_command(config: TunnelConfig) -> list[str]:
         "ServerAliveInterval=15",
         "-o",
         "ServerAliveCountMax=3",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
         "-p",
         str(config.port),
     ]
@@ -156,6 +161,12 @@ class TunnelManager(QObject):
         tp.process = process
         tp.stderr_buffer = ""
         tp.intentional_stop = False
+
+        # Set SSH_ASKPASS so password/passphrase prompts show a GUI dialog
+        env = QProcessEnvironment.systemEnvironment()
+        env.insert("SSH_ASKPASS", ASKPASS_SCRIPT)
+        env.insert("SSH_ASKPASS_REQUIRE", "force")
+        process.setProcessEnvironment(env)
 
         process.setProgram(cmd[0])
         process.setArguments(cmd[1:])

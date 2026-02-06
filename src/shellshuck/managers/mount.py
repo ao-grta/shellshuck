@@ -66,6 +66,9 @@ def build_sshfs_command(config: MountConfig) -> list[str]:
         "-f",  # foreground — so QProcess can track it
     ]
 
+    if config.identity_file:
+        cmd.extend(["-o", f"IdentityFile={config.identity_file}"])
+
     if config.sshfs_flags:
         cmd.extend(shlex.split(config.sshfs_flags))
 

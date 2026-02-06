@@ -44,6 +44,7 @@ class TunnelConfig:
     forward_rules: list[ForwardRule] = field(default_factory=list)
     extra_ssh_flags: str = ""
     connect_on_startup: bool = False
+    identity_file: str = ""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def to_dict(self) -> dict[str, object]:
@@ -56,6 +57,7 @@ class TunnelConfig:
             "forward_rules": [r.to_dict() for r in self.forward_rules],
             "extra_ssh_flags": self.extra_ssh_flags,
             "connect_on_startup": self.connect_on_startup,
+            "identity_file": self.identity_file,
         }
 
     @classmethod
@@ -71,6 +73,7 @@ class TunnelConfig:
             forward_rules=[ForwardRule.from_dict(r) for r in rules_data],
             extra_ssh_flags=str(data.get("extra_ssh_flags", "")),
             connect_on_startup=bool(data.get("connect_on_startup", False)),
+            identity_file=str(data.get("identity_file", "")),
         )
 
 
@@ -86,6 +89,7 @@ class MountConfig:
     port: int = 22
     sshfs_flags: str = ""
     connect_on_startup: bool = False
+    identity_file: str = ""
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def to_dict(self) -> dict[str, object]:
@@ -99,6 +103,7 @@ class MountConfig:
             "port": self.port,
             "sshfs_flags": self.sshfs_flags,
             "connect_on_startup": self.connect_on_startup,
+            "identity_file": self.identity_file,
         }
 
     @classmethod
@@ -113,6 +118,7 @@ class MountConfig:
             port=int(data.get("port", 22)),  # type: ignore[arg-type]
             sshfs_flags=str(data.get("sshfs_flags", "")),
             connect_on_startup=bool(data.get("connect_on_startup", False)),
+            identity_file=str(data.get("identity_file", "")),
         )
 
 

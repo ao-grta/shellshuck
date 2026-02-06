@@ -105,3 +105,30 @@ def test_parse_error_unknown() -> None:
 def test_parse_error_empty() -> None:
     msg = parse_ssh_error("")
     assert msg == "Unknown SSH error"
+
+
+def test_build_command_with_identity_file() -> None:
+    config = TunnelConfig(
+        name="test",
+        host="example.com",
+        user="alice",
+        identity_file="/home/alice/.config/shellshuck/keys/test_ed25519",
+        forward_rules=[ForwardRule(8080, "localhost", 80)],
+    )
+    cmd = build_ssh_command(config)
+    assert "-i" in cmd
+    idx = cmd.index("-i")
+    assert cmd[idx + 1] == "/home/alice/.config/shellshuck/keys/test_ed25519"
+    # -i should appear before user@host
+    assert idx < cmd.index("alice@example.com")
+
+
+def test_build_command_without_identity_file() -> None:
+    config = TunnelConfig(
+        name="test",
+        host="example.com",
+        user="alice",
+        forward_rules=[ForwardRule(8080, "localhost", 80)],
+    )
+    cmd = build_ssh_command(config)
+    assert "-i" not in cmd

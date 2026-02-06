@@ -88,6 +88,9 @@ def build_ssh_command(config: TunnelConfig) -> list[str]:
     for rule in config.forward_rules:
         cmd.extend(["-L", rule.to_ssh_arg()])
 
+    if config.identity_file:
+        cmd.extend(["-i", config.identity_file])
+
     if config.extra_ssh_flags:
         cmd.extend(shlex.split(config.extra_ssh_flags))
 

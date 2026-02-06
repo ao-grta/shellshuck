@@ -70,6 +70,7 @@ class MainWindow(QMainWindow):
     edit_tunnel_requested = Signal(str)
     edit_mount_requested = Signal(str)
     delete_requested = Signal(str, str)
+    setup_key_requested = Signal(str, str)  # config_id, conn_type
 
     def __init__(
         self,
@@ -234,6 +235,10 @@ class MainWindow(QMainWindow):
                     menu.addAction("Connect", lambda: self._mount_manager.mount(config))
             menu.addAction("Edit", lambda: self.edit_mount_requested.emit(config_id))
 
+        menu.addAction(
+            "Setup SSH Key",
+            lambda: self.setup_key_requested.emit(config_id, conn_type),
+        )
         menu.addSeparator()
         menu.addAction("Delete", lambda: self.delete_requested.emit(config_id, conn_type))
 

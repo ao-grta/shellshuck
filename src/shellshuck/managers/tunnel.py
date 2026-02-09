@@ -34,6 +34,7 @@ ASKPASS_SCRIPT = str(Path(__file__).parent.parent / "askpass.py")
 INITIAL_RETRY_DELAY_MS = 2000
 MAX_RETRY_DELAY_MS = 60000
 BACKOFF_FACTOR = 2
+MAX_RETRIES = 10
 
 
 class TunnelState(Enum):
@@ -219,6 +220,18 @@ class TunnelManager(QObject):
 
     def _schedule_reconnect(self, tp: TunnelProcess) -> None:
         """Schedule a reconnection attempt with exponential backoff."""
+        if tp.retry_count >= MAX_RETRIES:
+            self._set_state(tp, TunnelState.ERROR)
+            self.tunnel_error.emit(
+                tp.config.id,
+                f"Tunnel '{tp.config.name}' failed after {MAX_RETRIES} attempts",
+            )
+            self.tunnel_log.emit(
+                tp.config.id,
+                f"Giving up on '{tp.config.name}' after {MAX_RETRIES} attempts",
+            )
+            return
+
         delay = min(
             INITIAL_RETRY_DELAY_MS * (BACKOFF_FACTOR**tp.retry_count),
             MAX_RETRY_DELAY_MS,

@@ -19,6 +19,7 @@ HEALTH_CHECK_INTERVAL_MS = 30000
 INITIAL_RETRY_DELAY_MS = 2000
 MAX_RETRY_DELAY_MS = 60000
 BACKOFF_FACTOR = 2
+MAX_RETRIES = 10
 
 
 class MountState(Enum):
@@ -261,6 +262,18 @@ class MountManager(QObject):
 
     def _schedule_reconnect(self, mp: MountProcess) -> None:
         """Schedule reconnection with exponential backoff."""
+        if mp.retry_count >= MAX_RETRIES:
+            self._set_state(mp, MountState.ERROR)
+            self.mount_error.emit(
+                mp.config.id,
+                f"Mount '{mp.config.name}' failed after {MAX_RETRIES} attempts",
+            )
+            self.mount_log.emit(
+                mp.config.id,
+                f"Giving up on '{mp.config.name}' after {MAX_RETRIES} attempts",
+            )
+            return
+
         delay = min(
             INITIAL_RETRY_DELAY_MS * (BACKOFF_FACTOR**mp.retry_count),
             MAX_RETRY_DELAY_MS,

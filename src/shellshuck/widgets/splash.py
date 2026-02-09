@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QPixmap
 from PySide6.QtWidgets import (
@@ -14,8 +12,9 @@ from PySide6.QtWidgets import (
 )
 
 from shellshuck import __version__
+from shellshuck.resources import get_resources_dir
 
-RESOURCES_DIR = Path(__file__).parent.parent.parent.parent / "resources" / "icons"
+RESOURCES_DIR = get_resources_dir()
 SPLASH_PATH = RESOURCES_DIR / "shellshuck-splash.png"
 
 
@@ -24,14 +23,10 @@ class SplashScreen(QDialog):
 
     def __init__(self, parent: object = None) -> None:
         super().__init__(parent)  # type: ignore[arg-type]
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setFixedSize(400, 420)
-        self.setStyleSheet(
-            "QDialog { background: #2d2d2d; border-radius: 16px; }"
-        )
+        self.setStyleSheet("QDialog { background: #2d2d2d; border-radius: 16px; }")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 24, 30, 20)
@@ -56,9 +51,7 @@ class SplashScreen(QDialog):
         # Version
         version_label = QLabel(f"v{__version__}")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version_label.setStyleSheet(
-            "color: #777; font-size: 11px; font-family: monospace;"
-        )
+        version_label.setStyleSheet("color: #777; font-size: 11px; font-family: monospace;")
         layout.addWidget(version_label)
 
         layout.addSpacing(12)
@@ -76,9 +69,7 @@ class SplashScreen(QDialog):
         # Hint
         hint = QLabel("Click anywhere or press any key to continue")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hint.setStyleSheet(
-            "color: #555; font-size: 10px; font-style: italic;"
-        )
+        hint.setStyleSheet("color: #555; font-size: 10px; font-style: italic;")
         layout.addWidget(hint)
 
     @property

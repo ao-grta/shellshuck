@@ -1,6 +1,22 @@
-"""Tests for SSH tunnel manager — command construction and error parsing."""
+"""Tests for SSH tunnel manager — command construction, error parsing, and reconnect lifecycle."""
 
-from shellshuck.managers.tunnel import build_ssh_command, parse_ssh_error
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from shellshuck.managers.tunnel import (
+    BACKOFF_FACTOR,
+    INITIAL_RETRY_DELAY_MS,
+    MAX_RETRIES,
+    MAX_RETRY_DELAY_MS,
+    TunnelManager,
+    TunnelProcess,
+    TunnelState,
+    build_ssh_command,
+    parse_ssh_error,
+)
 from shellshuck.models import ForwardRule, TunnelConfig
 
 
@@ -132,3 +148,164 @@ def test_build_command_without_identity_file() -> None:
     )
     cmd = build_ssh_command(config)
     assert "-i" not in cmd
+
+
+# ---------------------------------------------------------------------------
+# Backoff delay math
+# ---------------------------------------------------------------------------
+
+
+class TestTunnelBackoffDelay:
+    """Pure math tests for the exponential backoff formula."""
+
+    def test_first_delay(self) -> None:
+        delay = min(INITIAL_RETRY_DELAY_MS * (BACKOFF_FACTOR**0), MAX_RETRY_DELAY_MS)
+        assert delay == INITIAL_RETRY_DELAY_MS
+
+    def test_second_delay(self) -> None:
+        delay = min(INITIAL_RETRY_DELAY_MS * (BACKOFF_FACTOR**1), MAX_RETRY_DELAY_MS)
+        assert delay == INITIAL_RETRY_DELAY_MS * BACKOFF_FACTOR
+
+    def test_delay_capped_at_max(self) -> None:
+        huge_count = 100
+        delay = min(
+            INITIAL_RETRY_DELAY_MS * (BACKOFF_FACTOR**huge_count),
+            MAX_RETRY_DELAY_MS,
+        )
+        assert delay == MAX_RETRY_DELAY_MS
+
+
+# ---------------------------------------------------------------------------
+# Reconnect lifecycle
+# ---------------------------------------------------------------------------
+
+
+def _make_tunnel_config() -> TunnelConfig:
+    return TunnelConfig(
+        name="test-tunnel",
+        host="example.com",
+        user="alice",
+        forward_rules=[ForwardRule(8080, "localhost", 80)],
+    )
+
+
+@pytest.fixture()
+def _patch_qt() -> object:  # noqa: PT005
+    """Patch QProcess and QTimer so no real processes or timers are created."""
+    with (
+        patch("shellshuck.managers.tunnel.QProcess", autospec=True) as mock_qprocess_cls,
+        patch("shellshuck.managers.tunnel.QTimer", autospec=True) as mock_qtimer_cls,
+        patch("shellshuck.managers.tunnel.QProcessEnvironment", autospec=True),
+    ):
+        # QProcess instances returned by the constructor
+        mock_proc = MagicMock()
+        mock_proc.state.return_value = MagicMock()  # ProcessState.NotRunning
+        mock_qprocess_cls.return_value = mock_proc
+        mock_qprocess_cls.ProcessState = MagicMock()
+
+        # QTimer instances returned by the constructor
+        mock_timer = MagicMock()
+        mock_qtimer_cls.return_value = mock_timer
+
+        yield {
+            "process_cls": mock_qprocess_cls,
+            "process": mock_proc,
+            "timer_cls": mock_qtimer_cls,
+            "timer": mock_timer,
+        }
+
+
+class TestTunnelReconnectLifecycle:
+    """Integration-style tests for the reconnect flow with patched Qt."""
+
+    def test_unexpected_exit_triggers_reconnect(
+        self, qapp: object, _patch_qt: dict[str, MagicMock]
+    ) -> None:
+        mgr = TunnelManager()
+        config = _make_tunnel_config()
+        tp = TunnelProcess(config=config, state=TunnelState.CONNECTED)
+        tp.stderr_buffer = "Connection reset by peer\n"
+        mgr._tunnels[config.id] = tp
+
+        mgr._on_finished(tp, 255, MagicMock())
+
+        assert tp.state == TunnelState.RECONNECTING
+        assert tp.retry_count == 1
+
+    def test_intentional_stop_prevents_reconnect(
+        self, qapp: object, _patch_qt: dict[str, MagicMock]
+    ) -> None:
+        mgr = TunnelManager()
+        config = _make_tunnel_config()
+        tp = TunnelProcess(
+            config=config,
+            state=TunnelState.CONNECTED,
+            intentional_stop=True,
+        )
+        tp.stderr_buffer = ""
+        mgr._tunnels[config.id] = tp
+
+        mgr._on_finished(tp, 0, MagicMock())
+
+        assert tp.state == TunnelState.DISCONNECTED
+        assert tp.retry_count == 0
+
+    def test_max_retries_triggers_error(
+        self, qapp: object, _patch_qt: dict[str, MagicMock]
+    ) -> None:
+        mgr = TunnelManager()
+        config = _make_tunnel_config()
+        tp = TunnelProcess(config=config, state=TunnelState.RECONNECTING)
+        tp.retry_count = MAX_RETRIES  # already at limit
+        mgr._tunnels[config.id] = tp
+
+        mgr._schedule_reconnect(tp)
+
+        assert tp.state == TunnelState.ERROR
+        # retry_count should not have been incremented further
+        assert tp.retry_count == MAX_RETRIES
+
+    def test_retry_count_resets_on_success(
+        self, qapp: object, _patch_qt: dict[str, MagicMock]
+    ) -> None:
+        mgr = TunnelManager()
+        config = _make_tunnel_config()
+        tp = TunnelProcess(config=config, state=TunnelState.RECONNECTING)
+        tp.retry_count = 5
+        mgr._tunnels[config.id] = tp
+
+        mgr._on_started(tp)
+
+        assert tp.retry_count == 0
+        assert tp.state == TunnelState.CONNECTED
+
+    def test_do_reconnect_launches_tunnel(
+        self, qapp: object, _patch_qt: dict[str, MagicMock]
+    ) -> None:
+        mgr = TunnelManager()
+        config = _make_tunnel_config()
+        tp = TunnelProcess(config=config, state=TunnelState.RECONNECTING)
+        tp.retry_timer = MagicMock()
+        mgr._tunnels[config.id] = tp
+
+        mgr._do_reconnect(tp)
+
+        assert tp.retry_timer is None
+        assert tp.state == TunnelState.CONNECTING
+        # _launch should have created a new process via QProcess()
+        _patch_qt["process_cls"].assert_called()
+
+    def test_schedule_reconnect_creates_timer(
+        self, qapp: object, _patch_qt: dict[str, MagicMock]
+    ) -> None:
+        mgr = TunnelManager()
+        config = _make_tunnel_config()
+        tp = TunnelProcess(config=config, state=TunnelState.CONNECTED)
+        tp.retry_count = 0
+        mgr._tunnels[config.id] = tp
+
+        mgr._schedule_reconnect(tp)
+
+        assert tp.retry_timer is not None
+        _patch_qt["timer"].setSingleShot.assert_called_with(True)
+        _patch_qt["timer"].start.assert_called_with(INITIAL_RETRY_DELAY_MS)

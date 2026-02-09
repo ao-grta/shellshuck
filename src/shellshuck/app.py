@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 
 from PySide6.QtGui import QCloseEvent, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
@@ -13,11 +12,12 @@ from shellshuck.config import ConfigManager
 from shellshuck.managers.mount import MountManager, MountState
 from shellshuck.managers.tunnel import TunnelManager, TunnelState
 from shellshuck.models import MountConfig, TunnelConfig
+from shellshuck.resources import get_resources_dir
 from shellshuck.widgets.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 
-RESOURCES_DIR = Path(__file__).parent.parent.parent / "resources" / "icons"
+RESOURCES_DIR = get_resources_dir()
 
 
 def _make_circle_icon(color: QColor) -> QIcon:

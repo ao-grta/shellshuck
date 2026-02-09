@@ -6,11 +6,11 @@ import logging
 import shlex
 from dataclasses import dataclass
 from enum import Enum, auto
-from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
 from shellshuck.models import TunnelConfig
+from shellshuck.resources import get_askpass_path
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,7 @@ SSH_ERROR_PATTERNS: list[tuple[str, str]] = [
     ("broken pipe", "Connection lost (broken pipe)"),
 ]
 
-# Reconnect backoff settings
-ASKPASS_SCRIPT = str(Path(__file__).parent.parent / "askpass.py")
+ASKPASS_SCRIPT = get_askpass_path()
 
 INITIAL_RETRY_DELAY_MS = 2000
 MAX_RETRY_DELAY_MS = 60000

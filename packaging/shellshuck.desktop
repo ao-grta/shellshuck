@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Shellshuck
+Comment=Manage SSH tunnels and SSHFS mounts
+Exec=shellshuck
+Icon=shellshuck
+Terminal=false
+Categories=Network;Utility;
+Keywords=ssh;tunnel;sshfs;mount;

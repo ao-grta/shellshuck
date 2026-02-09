@@ -5,15 +5,15 @@ from __future__ import annotations
 import logging
 import shlex
 from enum import Enum, auto
-from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
 from shellshuck.models import MountConfig
+from shellshuck.resources import get_askpass_path
 
 logger = logging.getLogger(__name__)
 
-ASKPASS_SCRIPT = str(Path(__file__).parent.parent / "askpass.py")
+ASKPASS_SCRIPT = get_askpass_path()
 
 HEALTH_CHECK_INTERVAL_MS = 30000
 INITIAL_RETRY_DELAY_MS = 2000
